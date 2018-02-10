@@ -76,6 +76,7 @@ with tf.device('/cpu:0'):
         y = tf.placeholder(tf.float32, [None, 1], name='y')
         tf_sentences_length = tf.placeholder(tf.int32, [None], name = 'sentences_length')
         tf_documents_length = tf.placeholder(tf.int32, [None], name = 'documents_length')
+        tf_keep_prob = tf.placeholder(tf.float32, name='tf_keep_prob')
 
         tf_embedding_matrix = tf.Variable(initial_value=embedding_matrix,
                                           trainable=False, dtype=tf.float32, name='tf_embedding_matrix')
@@ -88,7 +89,8 @@ with tf.device('/cpu:0'):
                                   rnn_input = X_embeddings_reshaped, seq_length = tf_sentences_length)
     with tf.variable_scope('Attention-1'):
         sentence_vectors, _ = create_attention(conc_outputs_1, attention_n_neurons_1)
-        sentence_vectors_reshaped = tf.reshape(sentence_vectors, shape=(-1, estimated_doc_len, sentence_vectors.get_shape().as_list()[-1]))
+        sentence_vectors_dropped = tf.nn.dropout(sentence_vectors, keep_prob=tf_keep_prob)
+        sentence_vectors_reshaped = tf.reshape(sentence_vectors, shape=(-1, estimated_doc_len, sentence_vectors_dropped.get_shape().as_list()[-1]))
     
         
     with tf.variable_scope('Attention-2'):
@@ -105,6 +107,10 @@ with tf.device('/cpu:0'):
         optimizer = tf.train.AdamOptimizer(learning_rate)
         training_op = optimizer.minimize(loss)
  
+
+# <codecell>
+
+sentence_vectors.shape
 
 # <codecell>
 
@@ -127,12 +133,14 @@ for i in range(1000):
     sentences_length, documents_length = estimate_sentences_and_document_lengths(X_train_samples, vocab_dict['my_dummy'])
     _, np_prob, np_y = sess.run([training_op, prob, y], feed_dict={X:X_train_samples, y:y_train_samples,
                                                                    tf_sentences_length:sentences_length,
-                                                                   tf_documents_length:documents_length})
+                                                                   tf_documents_length:documents_length,
+                                                                   tf_keep_prob:1})
 
     if i%50 == 1:
         np_prob, np_y = sess.run([prob, y],feed_dict={X:X_valid_samples, y:y_valid_samples,
                                                       tf_sentences_length:valid_sentences_length,
-                                                      tf_documents_length:valid_documents_length})
+                                                      tf_documents_length:valid_documents_length,
+                                                      tf_keep_prob:1})
 
         validation_accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
         print('Validation Accuracy', i, validation_accuracy)
