@@ -11,7 +11,7 @@
 # Version 3.8 can be found here: http://nlp.stanford.edu/software/stanford-corenlp-full-2017-06-09.zip
 #
 # Command to run corenlp server:
-# java -mx4g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer -port 9009 -timeout 150000 -annotators tokenize,ssplit,pos,lemma,ner,parse,coref,mention
+# java -mx4g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer -port 9000 -timeout 150000 -annotators tokenize,ssplit,pos,lemma,ner,parse,coref,mention
 
 
 import sys
@@ -25,9 +25,7 @@ from nltk.tokenize import word_tokenize
 from nltk.tokenize.moses import MosesDetokenizer
 
 
-
-
-nlp = StanfordCoreNLP('http://localhost:9009')
+nlp = StanfordCoreNLP('http://localhost:9000')
 detokenizer = MosesDetokenizer()
 
 
