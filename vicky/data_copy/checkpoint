@@ -1,0 +1,2 @@
+model_checkpoint_path: "/home/vicky/team_a/vicky/data/consent.ckpt"
+all_model_checkpoint_paths: "/home/vicky/team_a/vicky/data/consent.ckpt"
