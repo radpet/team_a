@@ -59,15 +59,11 @@ create_training_batches = CreateTrainingBatches(training_data['X_train'], traini
 
 # <codecell>
 
-
-
-# <codecell>
-
 n_neurons_GRU_1 = 50
 n_neurons_GRU_2 = 100
 attention_n_neurons_1 = 100
 attention_n_neurons_2 = 100
-learning_rate = 0.005
+learning_rate = 0.01
 
 tf.reset_default_graph()
 with tf.device('/cpu:0'):
@@ -85,12 +81,12 @@ with tf.device('/cpu:0'):
         X_embeddings_reshaped = tf.reshape(X_embeddings, shape=(-1, estimated_sent_len, X_embeddings.get_shape().as_list()[-1]))
 
     with tf.variable_scope('Bi-RNN-1', initializer=tf.contrib.layers.xavier_initializer()):
-        conc_outputs_1 = create_RNN(CustomRNN, n_neurons = n_neurons_GRU_1,
+        conc_outputs_1 = create_RNN(tf.contrib.rnn.GRUCell, n_neurons = n_neurons_GRU_1,
                                   rnn_input = X_embeddings_reshaped, seq_length = tf_sentences_length)
     with tf.variable_scope('Attention-1'):
         sentence_vectors, _ = create_attention(conc_outputs_1, attention_n_neurons_1)
         sentence_vectors_dropped = tf.nn.dropout(sentence_vectors, keep_prob=tf_keep_prob)
-        sentence_vectors_reshaped = tf.reshape(sentence_vectors, shape=(-1, estimated_doc_len, sentence_vectors_dropped.get_shape().as_list()[-1]))
+        sentence_vectors_reshaped = tf.reshape(sentence_vectors_dropped, shape=(-1, estimated_doc_len, sentence_vectors_dropped.get_shape().as_list()[-1]))
     
         
     with tf.variable_scope('Attention-2'):
@@ -110,10 +106,6 @@ with tf.device('/cpu:0'):
 
 # <codecell>
 
-sentence_vectors.shape
-
-# <codecell>
-
 init = tf.global_variables_initializer()
 saver = tf.train.Saver()
 sess = tf.InteractiveSession()
@@ -122,19 +114,26 @@ init.run()
 
 # <codecell>
 
-highest_validation_accuracy = 0
+def write_highest_validation_accuracy(validation_accuracy):
+    with open(os.path.join(data_path,'highest_validation_accuracy.txt'),'w') as f:
+        f.write(str(validation_accuracy[0]))
 
-X_valid_samples, y_valid_samples = create_training_batches.create_validation_data(num_pos=32, num_neg=32)
+
+# <codecell>
+
+highest_validation_accuracy = float(return_file_content(os.path.join(data_path,'highest_validation_accuracy.txt')))
+
+X_valid_samples, y_valid_samples = create_training_batches.create_validation_data(num_pos=65, num_neg=65)
 valid_sentences_length, valid_documents_length = estimate_sentences_and_document_lengths(X_valid_samples, vocab_dict['my_dummy'])
 
 
 for i in range(1000):
-    X_train_samples, y_train_samples = create_training_batches.create_training_data(num_pos=16, num_neg=16)
+    X_train_samples, y_train_samples = create_training_batches.create_training_data(num_pos=25, num_neg=40)
     sentences_length, documents_length = estimate_sentences_and_document_lengths(X_train_samples, vocab_dict['my_dummy'])
     _, np_prob, np_y = sess.run([training_op, prob, y], feed_dict={X:X_train_samples, y:y_train_samples,
                                                                    tf_sentences_length:sentences_length,
                                                                    tf_documents_length:documents_length,
-                                                                   tf_keep_prob:1})
+                                                                   tf_keep_prob:0.9})
 
     if i%50 == 1:
         np_prob, np_y = sess.run([prob, y],feed_dict={X:X_valid_samples, y:y_valid_samples,
@@ -146,13 +145,14 @@ for i in range(1000):
         print('Validation Accuracy', i, validation_accuracy)
         
         if validation_accuracy > highest_validation_accuracy:
+            write_highest_validation_accuracy(validation_accuracy)
             save_path = saver.save(sess, os.path.join(data_path,"consent.ckpt"))
             print('Saved Highest accurate model')
             highest_validation_accuracy = validation_accuracy
 
 # <codecell>
 
-np_normalized_sentence_attentions, np_prob, np_y = sess.run([normalized_sentence_attentions, prob, y],feed_dict={X:X_valid_samples, y:y_valid_samples,tf_sentences_length:valid_sentences_length, tf_documents_length:valid_documents_length})
+np_normalized_sentence_attentions, np_prob, np_y = sess.run([normalized_sentence_attentions, prob, y],feed_dict={X:X_valid_samples, y:y_valid_samples,tf_sentences_length:valid_sentences_length, tf_documents_length:valid_documents_length,tf_keep_prob:1})
 attention_scores = np.squeeze(np_normalized_sentence_attentions)
 accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
 print('Validation Accuracy', i, accuracy)
@@ -160,6 +160,10 @@ print('Validation Accuracy', i, accuracy)
 # <codecell>
 
 text_num =  20
+np_prob[text_num], np_y[text_num]
+
+# <codecell>
+
 for sent in X_valid_samples[text_num]:
     for word_id in sent:
         word = rev_vocab_dict[word_id]
@@ -175,12 +179,7 @@ for word_id in X_valid_samples[text_num][important_sentence_num[text_num]]:
     word = rev_vocab_dict[word_id]
     if word!='my_dummy':
         print(word, end=' ')
-print('\n')
-text_num =  1
-for word_id in X_valid_samples[text_num][important_sentence_num[text_num]+1]:
-    word = rev_vocab_dict[word_id]
-    if word!='my_dummy':
-        print(word, end=' ')
+
 
 # <codecell>
 
@@ -189,3 +188,7 @@ root_logdir = "tf_logs"
 logdir = os.path.join(data_path,"{}/run-{}".format(root_logdir, now))
 file_writer = tf.summary.FileWriter(logdir, tf.get_default_graph())
 file_writer.close()
+
+# <codecell>
+
+

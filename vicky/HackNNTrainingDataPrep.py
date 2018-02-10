@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
+import random
 
 # <codecell>
 
@@ -41,7 +42,7 @@ def preprocess_and_group_data(data):
     data.index = range(len(data))
     aliased_snippet = []
     for i in range(len(data)):
-        aliased_snippet.append(data['snippet'][i].replace(data['company1'][i],'company1').replace(data['company2'][i],'company2'))
+        aliased_snippet.append(data['snippet'][i].replace(data['company2'][i],' company2 ').replace(data['company1'][i],' company1 '))
     data['snippet'] = aliased_snippet
 
     data['snippet'] = data['snippet'].str.lower()
@@ -71,6 +72,7 @@ estimated_sent_len = sent_lens[int(len(sent_lens)*0.90)]
 doc_lens = [len(snippet) for snippet in grouped_data['snippet']]
 doc_lens = sorted(doc_lens)
 estimated_doc_len = doc_lens[int(len(doc_lens)*0.90)]
+estimated_doc_len = 30
 
 # <codecell>
 
@@ -78,11 +80,9 @@ vocab_dict, rev_vocab_dict = create_vocab_dict(all_documents_tokenized_words, mi
 
 # <codecell>
 
-# parent_subsidy_df = data[data['is_parent']][['company1','company2']].drop_duplicates()
-# subsidy_parent = zip(list(parent_subsidy_df['company2']), list(parent_subsidy_df['company1']))
-# subsidy_parent = [list(l) for l in subsidy_parent]   
-
-# all_documents_tokenized_sentences_tokenized_words_2 = [word_tokenizer(snippet) for snippet, company1, company2 in zip(data['snippet'],data['company1'],data['company2']) if [company1, company2] not in subsidy_parent]
+parent_subsidy_df = data[data['is_parent']][['company1','company2']].drop_duplicates()
+subsidy_parent = zip(list(parent_subsidy_df['company2']), list(parent_subsidy_df['company1']))
+subsidy_parent = [list(l) for l in subsidy_parent]   
 
 # <codecell>
 
@@ -121,14 +121,15 @@ grouped_data.index = range(len(grouped_data))
 
 # <codecell>
 
-grouped_train_data = grouped_data[:750]
-grouped_train_data.index = range(len(grouped_train_data))
-grouped_validation_data = grouped_data[750:]
-grouped_validation_data.index = range(len(grouped_validation_data))
+documents_length = np.asarray([len(snippet) for snippet in grouped_data['snippet']])
 
 # <codecell>
 
-# grouped_train_data['is_parent'].value_counts(), grouped_validation_data['is_parent'].value_counts()
+len_thresh = 20
+grouped_validation_data = grouped_data[documents_length>len_thresh]
+grouped_train_data = grouped_data[documents_length<len_thresh-1]
+grouped_train_data.index = range(len(grouped_train_data))
+grouped_validation_data.index = range(len(grouped_validation_data))
 
 # <codecell>
 
@@ -139,6 +140,17 @@ for index , row in grouped_train_data.iterrows():
     id_array = return_X(grouped_snippets)
     X_train.append(id_array)
     y_train.append(row['is_parent'])
+
+# <codecell>
+
+for iteration in range(1):
+    for index , row in grouped_train_data.iterrows():
+        if len(row['snippet'])>estimated_doc_len:
+            if  [row['company1'],row['company2']] not in subsidy_parent:
+                grouped_snippets = random.sample(row['snippet'], len(row['snippet']))
+                id_array = return_X(grouped_snippets)
+                X_train.append(id_array)
+                y_train.append(row['is_parent'])
 
 # <codecell>
 
@@ -173,15 +185,7 @@ validation_data['y_valid'] = y_valid
 
 # <codecell>
 
-
-
-# <codecell>
-
 save_pickle_file(training_data, os.path.join(data_path, 'training_data.p'))
 save_pickle_file(training_params, os.path.join(data_path, 'training_params.p'))
 save_pickle_file(validation_data, os.path.join(data_path, 'validation_data.p'))
-
-
-# <codecell>
-
 

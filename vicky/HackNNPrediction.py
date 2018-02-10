@@ -26,6 +26,15 @@ from FeatureExtraction.Word2VecUtilities import create_word2vector_model, create
 from TensorflowInputProcessing.SentenceProcessing import SentenceProcessing
 from TensorflowInputProcessing.DocumentProcessing import DocumentProcessing
 from TensorflowInputProcessing.MapWordToID  import MapWordToID 
+from CommonUtilities.FileUtilities import return_file_content, save_pickle_file, load_pickle_file
+
+
+# <codecell>
+
+
+from CustomNN import create_RNN, create_attention
+from CustomRNN import CustomRNN
+from LengthEstimation import estimate_sentences_and_document_lengths
 
 # <codecell>
 
@@ -39,7 +48,7 @@ def preprocess_and_group_data(data):
     data.index = range(len(data))
     aliased_snippet = []
     for i in range(len(data)):
-        aliased_snippet.append(data['snippet'][i].replace(data['company1'][i],'company1').replace(data['company2'][i],'company2'))
+        aliased_snippet.append(data['snippet'][i].replace(data['company2'][i],' company2 ').replace(data['company1'][i],' company1 '))
     data['snippet'] = aliased_snippet
 
     data['snippet'] = data['snippet'].str.lower()
@@ -54,10 +63,6 @@ def word_tokenizer(string):
 # <codecell>
 
 test_data, grouped_test_data = preprocess_and_group_data(test_data)
-
-# <codecell>
-
-from CommonUtilities.FileUtilities import return_file_content, save_pickle_file, load_pickle_file
 
 # <codecell>
 
@@ -117,6 +122,7 @@ graph = tf.get_default_graph()
 
 X = graph.get_operation_by_name('Inputs/X').outputs[0]
 y = graph.get_operation_by_name('Inputs/y').outputs[0]
+tf_keep_prob = graph.get_operation_by_name('Inputs/tf_keep_prob').outputs[0]
 tf_sentences_length = graph.get_operation_by_name('Inputs/sentences_length').outputs[0]
 tf_documents_length = graph.get_operation_by_name('Inputs/documents_length').outputs[0]
 normalized_sentence_attentions = graph.get_operation_by_name('Attention-2/ExpandDims').outputs[0]
@@ -125,9 +131,9 @@ prob = graph.get_operation_by_name('Prediction/prob').outputs[0]
 
 # <codecell>
 
-from CustomNN import create_RNN, create_attention
-from CustomRNN import CustomRNN
-from LengthEstimation import estimate_sentences_and_document_lengths
+validation_data = load_pickle_file(os.path.join(data_path, 'validation_data.p'))
+X_valid = validation_data['X_valid']
+y_valid = validation_data['y_valid']
 
 # <codecell>
 
@@ -136,23 +142,33 @@ valid_sentences_length, valid_documents_length = estimate_sentences_and_document
 
 # <codecell>
 
-np_normalized_sentence_attentions, np_prob = sess.run([normalized_sentence_attentions, prob],
-                                                            feed_dict={X:X_valid_samples, y:y_valid_samples,
-                                                                       tf_sentences_length:valid_sentences_length,
-                                                                       tf_documents_length:valid_documents_length})
+np_normalized_sentence_attentions, np_prob, np_y = sess.run([normalized_sentence_attentions, prob, y],
+                                                            feed_dict={X:X_valid_samples, y:y_valid_samples,tf_sentences_length:valid_sentences_length, tf_documents_length:valid_documents_length,tf_keep_prob:1})
 attention_scores = np.squeeze(np_normalized_sentence_attentions)
-#np_y = y_valid_samples
-#accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
 
 # <codecell>
 
+# np_y = y_valid_samples
+# accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
+
+# <codecell>
+
+_, grouped_test_data = preprocess_and_group_data(test_data)
 grouped_test_data['prob'] = np_prob
-grouped_test_data = grouped_test_data[np_prob>0.5]
+
+grouped_test_data_reduced = grouped_test_data[np_prob>0.98]
+grouped_test_data_reduced.index= range(len(grouped_test_data_reduced))
 
 # <codecell>
 
-grouped_test_data.index= range(len(grouped_test_data))
+attention_scores_reduced = attention_scores[[np_prob>0.98][0][:,0]]
+important_sentence_num = np.argmax(attention_scores_reduced,1)
+
 
 # <codecell>
 
-grouped_test_data
+grouped_test_data.sort_values('prob', ascending=False)
+
+# <codecell>
+
+
