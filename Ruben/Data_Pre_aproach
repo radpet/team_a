@@ -1,0 +1,11 @@
+## Augmenting Data Set ##
+Ruben S.
+
+Exploring the use of NLG APIs to generate a bigger dataset. 
+Given a data row, copy and maintain values in Column A,B,C, but process column D (text snippet) through a “spintext” tool to generate variations that maintain the same relationships between entities, but where sentence order and nouns have been changed, as to train the NN to understand the relationships without relying on specific words.
+
+To Do:
+Write python function that calls API to create multiple text snippet variations
+Test on a few samples <10
+Test function that loops through 4-5 API calls for each text to generate 4-5 variations through parameter tunning
+Create loop that applies previous function to all text rows.
