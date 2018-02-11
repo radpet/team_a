@@ -125,9 +125,8 @@ documents_length = np.asarray([len(snippet) for snippet in grouped_data['snippet
 
 # <codecell>
 
-len_thresh = 20
-grouped_validation_data = grouped_data[documents_length>len_thresh]
-grouped_train_data = grouped_data[documents_length<len_thresh-1]
+grouped_validation_data = grouped_data[750:]
+grouped_train_data = grouped_data[:750]
 grouped_train_data.index = range(len(grouped_train_data))
 grouped_validation_data.index = range(len(grouped_validation_data))
 
@@ -135,11 +134,15 @@ grouped_validation_data.index = range(len(grouped_validation_data))
 
 X_train = []
 y_train = []
-for index , row in grouped_train_data.iterrows():
-    grouped_snippets = row['snippet']
-    id_array = return_X(grouped_snippets)
-    X_train.append(id_array)
-    y_train.append(row['is_parent'])
+for i in range(2):
+    for index , row in grouped_train_data.iterrows():
+        try:
+            grouped_snippets = random.sample(row['snippet'], 4)
+        except:
+            grouped_snippets = row['snippet']
+        id_array = return_X(grouped_snippets)
+        X_train.append(id_array)
+        y_train.append(row['is_parent'])
 
 # <codecell>
 
@@ -147,7 +150,10 @@ for iteration in range(1):
     for index , row in grouped_train_data.iterrows():
         if len(row['snippet'])>estimated_doc_len:
             if  [row['company1'],row['company2']] not in subsidy_parent:
-                grouped_snippets = random.sample(row['snippet'], len(row['snippet']))
+                try:
+                    grouped_snippets = random.sample(row['snippet'], 4)
+                except:
+                    grouped_snippets = row['snippet']
                 id_array = return_X(grouped_snippets)
                 X_train.append(id_array)
                 y_train.append(row['is_parent'])
@@ -156,11 +162,15 @@ for iteration in range(1):
 
 X_valid = []
 y_valid = []
-for index , row in grouped_validation_data.iterrows():
-    grouped_snippets = row['snippet']
-    id_array = return_X(grouped_snippets)
-    X_valid.append(id_array)
-    y_valid.append(row['is_parent'])
+for i in range(2):
+    for index , row in grouped_validation_data.iterrows():
+        try:
+            grouped_snippets = random.sample(row['snippet'], 4)
+        except:
+            grouped_snippets = row['snippet']
+        id_array = return_X(grouped_snippets)
+        X_valid.append(id_array)
+        y_valid.append(row['is_parent'])
 
 # <codecell>
 
@@ -189,3 +199,11 @@ save_pickle_file(training_data, os.path.join(data_path, 'training_data.p'))
 save_pickle_file(training_params, os.path.join(data_path, 'training_params.p'))
 save_pickle_file(validation_data, os.path.join(data_path, 'validation_data.p'))
 
+
+# <codecell>
+
+
+
+# <codecell>
+
+grouped_data.iloc[1]['snippet']

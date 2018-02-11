@@ -31,15 +31,21 @@ from CommonUtilities.FileUtilities import return_file_content, save_pickle_file,
 
 # <codecell>
 
-
 from CustomNN import create_RNN, create_attention
 from CustomRNN import CustomRNN
 from LengthEstimation import estimate_sentences_and_document_lengths
 
 # <codecell>
 
-data_path = os.path.abspath('data')
+data_path = os.path.abspath('data_copy')
+train_data = pd.read_csv(os.path.join(data_path, 'train.csv'))
 test_data = pd.read_csv(os.path.join(data_path, 'test.csv'))
+
+# <codecell>
+
+# test_data_copy = pd.DataFrame([test_data['company1'],test_data['company2'], test_data['is_parent'],test_data['snippet']]).T
+# test_data_copy.columns = ['company2','company1','is_parent','snippet']
+# test_data = pd.concat([test_data,test_data_copy])
 
 # <codecell>
 
@@ -131,9 +137,9 @@ prob = graph.get_operation_by_name('Prediction/prob').outputs[0]
 
 # <codecell>
 
-validation_data = load_pickle_file(os.path.join(data_path, 'validation_data.p'))
-X_valid = validation_data['X_valid']
-y_valid = validation_data['y_valid']
+# validation_data = load_pickle_file(os.path.join(data_path, 'validation_data.p'))
+# X_valid = validation_data['X_valid']
+# y_valid = validation_data['y_valid']
 
 # <codecell>
 
@@ -148,26 +154,83 @@ attention_scores = np.squeeze(np_normalized_sentence_attentions)
 
 # <codecell>
 
-# np_y = y_valid_samples
-# accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
+np_y = y_valid_samples
+accuracy = sum((np_prob>0.5)==(np_y>0.5))/len(np_y)
 
 # <codecell>
 
 _, grouped_test_data = preprocess_and_group_data(test_data)
 grouped_test_data['prob'] = np_prob
+grouped_test_data['imp_sent_num'] = np.argmax(attention_scores,1)
 
 grouped_test_data_reduced = grouped_test_data[np_prob>0.98]
 grouped_test_data_reduced.index= range(len(grouped_test_data_reduced))
 
 # <codecell>
 
-attention_scores_reduced = attention_scores[[np_prob>0.98][0][:,0]]
-important_sentence_num = np.argmax(attention_scores_reduced,1)
-
+top_results = grouped_test_data.sort_values('prob', ascending=False)[:80]
+top_results.index = range(len(top_results))
 
 # <codecell>
 
-grouped_test_data.sort_values('prob', ascending=False)
+top_results
+
+# <codecell>
+
+top_results.iloc[15]['company1'], top_results.iloc[15]['company2']
+
+# <codecell>
+
+def return_actual_parent (predicted_subsidiary_name):
+    try:
+        return (list(train_data[(train_data['company2']==predicted_subsidiary_name)&(train_data['is_parent'])==True]['company1'])[0])
+    except:
+        return 'No_parent'
+
+# <codecell>
+
+count = 0
+identified_pairs = []
+top_results_fp_removed = []
+for index, row in top_results.iterrows():
+    actual_parent_name = return_actual_parent(row['company2'])
+    if actual_parent_name=='No_parent' or actual_parent_name==row['company1']:
+        if [row['company2'],row['company1']] not in identified_pairs:
+            identified_pairs.append([row['company1'], row['company2']])
+            top_results_fp_removed.append(row)
+
+# <codecell>
+
+top_results_fp_removed = pd.DataFrame(top_results_fp_removed)
+top_results_fp_removed.index = range(len(top_results_fp_removed))
+
+# <codecell>
+
+top_results_fp_removed
+
+# <codecell>
+
+print(top_results_fp_removed[['company1','company2']])
+
+# <codecell>
+
+text_num = 35
+
+# <codecell>
+
+print('Predicted parent:',top_results_fp_removed['company1'][text_num])
+print('Predicted subsidiary:',top_results_fp_removed['company2'][text_num])
+
+# <codecell>
+
+print('Important Sentence')
+print(top_results_fp_removed['snippet'][text_num][top_results_fp_removed['imp_sent_num'][text_num]])
+
+# <codecell>
+
+print('Input snippets:')
+for i, snippet in enumerate(top_results_fp_removed['snippet'][text_num]):
+    print(i+1, snippet, end='\n\n')
 
 # <codecell>
 

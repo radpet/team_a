@@ -60,10 +60,9 @@ create_training_batches = CreateTrainingBatches(training_data['X_train'], traini
 # <codecell>
 
 n_neurons_GRU_1 = 50
-n_neurons_GRU_2 = 100
 attention_n_neurons_1 = 100
 attention_n_neurons_2 = 100
-learning_rate = 0.01
+learning_rate = 0.001
 
 tf.reset_default_graph()
 with tf.device('/cpu:0'):
@@ -128,12 +127,12 @@ valid_sentences_length, valid_documents_length = estimate_sentences_and_document
 
 
 for i in range(1000):
-    X_train_samples, y_train_samples = create_training_batches.create_training_data(num_pos=25, num_neg=40)
+    X_train_samples, y_train_samples = create_training_batches.create_training_data(num_pos=40, num_neg=60)
     sentences_length, documents_length = estimate_sentences_and_document_lengths(X_train_samples, vocab_dict['my_dummy'])
     _, np_prob, np_y = sess.run([training_op, prob, y], feed_dict={X:X_train_samples, y:y_train_samples,
                                                                    tf_sentences_length:sentences_length,
                                                                    tf_documents_length:documents_length,
-                                                                   tf_keep_prob:0.9})
+                                                                   tf_keep_prob:1})
 
     if i%50 == 1:
         np_prob, np_y = sess.run([prob, y],feed_dict={X:X_valid_samples, y:y_valid_samples,
@@ -146,7 +145,7 @@ for i in range(1000):
         
         if validation_accuracy > highest_validation_accuracy:
             write_highest_validation_accuracy(validation_accuracy)
-            save_path = saver.save(sess, os.path.join(data_path,"consent.ckpt"))
+            save_path = saver.save(sess, os.path.join(data_path,"consent_2.ckpt"))
             print('Saved Highest accurate model')
             highest_validation_accuracy = validation_accuracy
 
